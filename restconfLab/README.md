@@ -1,0 +1,1 @@
+Netconf mock for the DEVASC lab
