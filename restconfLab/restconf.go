@@ -14,16 +14,16 @@ var login = map[string]string{
 	"admin": "password123",
 }
 
-// Dftl struct to hold Restconf default data.
-type Dflt struct {
+// Rconf struct to hold Restconf default data.
+type Rconf struct {
 	Restconf           string `json:"ietf-restconf:restconf,omitempty"`
 	Data               string `json:"data,omitempty"`
 	Operations         string `json:"operations,omitempty"`
 	YangLibraryVersion string `json:"yang-library-version"`
 }
 
-// Global var dflt to store restconf default data.
-var dflt = Dflt{Restconf: " ", Data: "{}", Operations: "{}", YangLibraryVersion: "2016-06-21"}
+// Global var rconf to store restconf default data.
+var rconf = Rconf{Restconf: " ", Data: "{}", Operations: "{}", YangLibraryVersion: "2016-06-21"}
 
 // Inter struct to hold Restconf interface data
 type Inter struct {
@@ -41,7 +41,8 @@ type Inter struct {
 	} `json:"ietf-interfaces:interfaces"`
 }
 
-var intfs = []Inter{
+// Global var inter to store restconf interfaces data.
+var inter = []Inter{
 	{
 		IetfInterfacesInterfaces: struct {
 			Interface []struct {
@@ -85,15 +86,39 @@ var intfs = []Inter{
 // Get default Restconf response
 func GetDefault(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(dflt)
+	json.NewEncoder(w).Encode(rconf)
 }
 
-// Get Interfaces data
+// Get Restconf All Interfaces data
 func GetInterfaces(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(intfs)
+	json.NewEncoder(w).Encode(inter)
 }
 
+// Get a single interface by name.
+func GetInterface(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	id := vars["interface"]
+	name := strings.Split(id, "=")[1]
+	if name != "GigabitEthernet1" && name != "Loopback1" {
+		http.Error(w, "Invalid Interface Name", http.StatusBadRequest)
+		return
+	}
+
+	for _, intf := range inter {
+		for _, specificInt := range intf.IetfInterfacesInterfaces.Interface {
+			if specificInt.Name == "GigabitEthernet1" {
+				json.NewEncoder(w).Encode(specificInt)
+				return
+			}
+		}
+	}
+
+	http.Error(w, "Interface not found", http.StatusNotFound)
+}
+
+// Mocking for system authentication
 func basicAuth(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
@@ -142,9 +167,11 @@ func main() {
 	// Define API endpoints.  Use constants for the paths.
 	const restconfPath = "/restconf"
 	const restconfPathIntfs = "/restconf/data/ietf-interfaces:interfaces"
+	const restconfPathInterface = "/restconf/data/ietf-interfaces:interfaces/{interface}"
 	// Register the handlers.  Use method chaining for cleaner syntax.
 	r.HandleFunc(restconfPath, basicAuth(GetDefault)).Methods(http.MethodGet)
 	r.HandleFunc(restconfPathIntfs, basicAuth(GetInterfaces)).Methods(http.MethodGet)
+	r.HandleFunc(restconfPathInterface, basicAuth(GetInterface)).Methods(http.MethodGet)
 
 	// Start the server.
 	const port = ":8080"

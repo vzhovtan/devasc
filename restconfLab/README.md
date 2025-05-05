@@ -1,1 +1,2 @@
-Netconf mock for the DEVASC lab
+RESTCONF mock for the lab in DEVASC class to replace the dependencies on actual HW or V\
+and provide local solution for students
